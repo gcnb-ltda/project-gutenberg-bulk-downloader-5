@@ -27,7 +27,7 @@ repo_target=int(repo_target_gib)*1024*1024*1024
 max_text=int(max_text_mib)*1024*1024
 push_batch=int(push_batch_mib)*1024*1024
 delay=float(delay_s)
-UA='GCNB-Project-Gutenberg-Archiver/2.0 (+https://github.com/gcnb-ltda/project-gutenberg-bulk-downloader-5)'
+UA='GCNB-Project-Gutenberg-Archiver/2.1 (+https://github.com/gcnb-ltda/project-gutenberg-bulk-downloader-5)'
 
 try:
     state=json.load(open(state_file,encoding='utf-8'))
@@ -136,9 +136,26 @@ def save_state(complete=False):
 def git_commit(message):
     subprocess.run(['git','add',state_file,index_file,out_dir],check=True)
     r=subprocess.run(['git','diff','--cached','--quiet'])
-    if r.returncode==0: return
+    if r.returncode==0:
+        return
     subprocess.run(['git','commit','-m',message],check=True)
-    subprocess.run(['git','push','origin','HEAD:main'],check=True)
+
+    # A workflow can become stale if main receives a maintenance commit while
+    # this long import is still downloading. Retry safely instead of losing
+    # the completed local batch with a non-fast-forward/fetch-first error.
+    for attempt in range(1,6):
+        pushed=subprocess.run(['git','push','origin','HEAD:main'])
+        if pushed.returncode==0:
+            return
+        print(f'Push rejected; synchronizing with origin/main (attempt {attempt}/5)',flush=True)
+        subprocess.run(['git','fetch','origin','main'],check=True)
+        rebased=subprocess.run(['git','rebase','origin/main'])
+        if rebased.returncode!=0:
+            subprocess.run(['git','rebase','--abort'],check=False)
+            raise RuntimeError('Automatic rebase failed; repository requires conflict review')
+        time.sleep(2*attempt)
+
+    raise RuntimeError('Unable to push checkpoint after 5 synchronized attempts')
 
 for gid in ids:
     if gid<=last_id: continue
