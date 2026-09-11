@@ -1,8 +1,8 @@
 {
   "collection": "Project Gutenberg direct cache TXT",
   "catalog_url": "https://www.gutenberg.org/cache/epub/feeds/pg_catalog.csv.gz",
-  "last_id": 4729,
-  "total_bytes_repo": 1048639565,
-  "total_files_repo": 2333,
+  "last_id": 5357,
+  "total_bytes_repo": 1310913175,
+  "total_files_repo": 2959,
   "complete": false
 }
